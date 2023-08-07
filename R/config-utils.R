@@ -17,8 +17,8 @@ as_src_cfg.src_cfg <- function(x) x
 as_src_cfg.src_env <- function(x) {
 
   args <- list(name = src_name(x), id_cfg = as_id_cfg(x),
-    col_cfg = vec_unchop(lapply(x, as_col_cfg), name_spec = "{inner}"),
-    tbl_cfg = vec_unchop(lapply(x, as_tbl_cfg), name_spec = "{inner}")
+    col_cfg = list_unchop(lapply(x, as_col_cfg), name_spec = "{inner}"),
+    tbl_cfg = list_unchop(lapply(x, as_tbl_cfg), name_spec = "{inner}")
   )
 
   do.call(new_src_cfg,
@@ -385,6 +385,17 @@ partition_col <- function(x, orig_names = FALSE) {
   assert_that(is.string(col))
 
   col
+}
+
+tbl_callback <- function(x){
+  x <- as_tbl_cfg(x)
+  assert_that(length(x) == 1L)
+  
+  if ("callback" %in% vctrs::fields(x)) {
+    str_to_fun(vctrs::field(x, "callback"))
+  } else {
+    identity_callback
+  }
 }
 
 #' @export

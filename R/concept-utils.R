@@ -200,6 +200,30 @@ get_hirid_ids <- function(x, ids) {
   load_id("variables", x, .data$id %in% .env$ids, cols = "unit", id_var = "id")
 }
 
+#' @rdname data_items
+#' @export
+init_itm.sic_itm <- function(x, table, sub_var, ids,
+                             callback = "identity_callback", ...) {
+  
+  assert_that(is.string(table), has_length(ids),
+              is.character(ids) || is_intish(ids))
+  
+  x[["table"]] <- table
+  
+  units <- get_sic_ids(x, ids)
+  units <- rename_cols(rm_na(units), sub_var, "referenceglobalid")
+  
+  todo <- c("ids", "units")
+  x[todo] <- mget(todo)
+  
+  complete_tbl_itm(x, callback, sub_var, ...)
+}
+
+get_sic_ids <- function(x, ids) {
+  load_id("d_references", x, .data$referenceglobalid %in% .env$ids, cols = "referenceunit", id_var = "referenceglobalid")
+}
+
+
 #' @param unit_val String valued unit to be used in case no `unit_var` is
 #' available for the given table
 #'
@@ -330,6 +354,10 @@ prepare_query.sel_itm <- prep_sel
 #' @keywords internal
 #' @export
 prepare_query.hrd_itm <- prep_sel
+
+#' @keywords internal
+#' @export
+prepare_query.sic_itm <- prep_sel
 
 #' @keywords internal
 #' @export
@@ -549,6 +577,17 @@ do_callback.hrd_itm <- function(x, ...) {
 
 #' @keywords internal
 #' @export
+do_callback.sic_itm <- function(x, ...) {
+  # TODO: generalise and combine with do_callback.hrd_itm
+  if (is.null(get_itm_var(x, "unit_var"))) {
+    x <- try_add_vars(x, unit_var = "referenceunit")
+  }
+  
+  NextMethod()
+}
+
+#' @keywords internal
+#' @export
 do_callback.col_itm <- function(x, ...) {
 
   if (is.null(get_itm_var(x, "unit_var")) && not_null(x[["unit_val"]])) {
@@ -602,6 +641,19 @@ do_itm_load.hrd_itm <- function(x, id_type = "icustay", interval = hours(1L)) {
     res <- merge(res, unt, by = get_itm_var(x, "sub_var"), all.x = TRUE)
   }
 
+  res
+}
+
+#' @export
+do_itm_load.sic_itm <- function(x, id_type = "icustay", interval = hours(1L)) {
+  
+  res <- NextMethod()
+  
+  if (is.null(get_itm_var(x, "unit_var"))) {
+    unt <- x[["units"]]
+    res <- merge(res, unt, by = get_itm_var(x, "sub_var"), all.x = TRUE)
+  }
+  
   res
 }
 
@@ -889,6 +941,7 @@ is_target <- function(x, dat) is_type(get_target(x))(dat)
 #' @param name The name of the concept
 #' @param items Zero or more `itm` objects
 #' @param description String-valued concept description
+#' @param omopid OMOP identifier
 #' @param category String-valued category
 #' @param aggregate NULL or a string denoting a function used to aggregate per
 #' id and if applicable per time step
@@ -938,19 +991,21 @@ is_target <- function(x, dat) is_type(get_target(x))(dat)
 #'
 #' @export
 #'
-new_cncpt <- function(name, items, description = name,
+new_cncpt <- function(name, items, description = name, omopid = NA_integer_,
                       category = NA_character_, aggregate = NULL, ...,
                       target = "ts_tbl", class = "num_cncpt") {
 
   assert_that(is.string(name), null_or(class, is.character), is.string(target),
-              is.string(description), is.string(category))
+              is.string(description), is.string(category), is_scalar(omopid),
+              is_intish(omopid))
 
   if (!is_concept(items)) {
     items <- set_target(as_item(items), target)
   }
 
   res <- list(name = name, items = items, description = description,
-              category = category, aggregate = aggregate, target = target)
+              omopid = as.integer(omopid), category = category,
+              aggregate = aggregate, target = target)
 
   init_cncpt(structure(res, class = c(class, "cncpt")), ...)
 }
