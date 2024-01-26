@@ -176,7 +176,7 @@ load_difftime.sic_tbl <- function(x, rows, cols = colnames(x),
   
   warn_dots(...)
   # TODO: consider renaming fun to reflect its use for SICdb
-  load_eiau(x, {{ rows }}, cols, id_hint, time_vars, s_as_mins)
+  load_ei(x, {{ rows }}, cols, id_hint, time_vars, s_as_mins)
 }
 
 #' @rdname load_src
